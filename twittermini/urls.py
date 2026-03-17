@@ -23,6 +23,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('',include('user_accound.urls')),
     path('accounts/', include('allauth.urls')), #this provides /account/google/login/
+    path('posts/',include('post.urls')),
+    path('hashtags/',include('hashtag.urls')),
   
 ]
 urlpatterns += static(settings.MEDIA_URL,document_root=settings.MEDIA_ROOT)

@@ -14,7 +14,10 @@ from django.core.exceptions import ValidationError
 from django.http import JsonResponse,HttpResponse
 
 from .utils import generate_and_send_otp, verify_otp
-from .models import *
+from .models import CustomUser, follow
+from .utils_privacy import can_view_user_posts
+from post.models import Post, Like,Comment
+from post.views import feed_view
 
 
 
@@ -64,9 +67,9 @@ def start_page(request):
 # ============================================================
 # INDEX
 # ============================================================
-@login_required
+@login_required(login_url="start_page")
 def index(request):
-    return render(request, "index/base.html")
+    return feed_view(request)
 
 
 # ============================================================
@@ -555,7 +558,7 @@ def toggle_follow_view(request, username):
     if request.user == target_user:
         return JsonResponse({"success": False, "message": "You cannot follow yourself."}, status=400)
 
-    follow_instance = Follow.objects.filter(follower=request.user, following=target_user).first()
+    follow_instance = follow.objects.filter(follower=request.user, following=target_user).first()
 
     try:
         with transaction.atomic():
@@ -563,7 +566,7 @@ def toggle_follow_view(request, username):
                 follow_instance.delete()
                 is_following = False
             else:
-                Follow.objects.create(follower=request.user, following=target_user)
+                follow.objects.create(follower=request.user, following=target_user)
                 is_following = True
     except Exception:
         return JsonResponse({"success": False, "message": "Something went wrong."}, status=500)

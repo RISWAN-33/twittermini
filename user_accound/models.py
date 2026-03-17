@@ -78,3 +78,5 @@ class follow(models.Model):
 
     def __str__(self):
         return f"{self.follower.username} → {self.following.username}"
+    
+    

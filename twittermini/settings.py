@@ -48,6 +48,8 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.google',
 
     'user_accound',
+    'post',
+    'hashtag',
     
 ]
 
