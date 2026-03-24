@@ -19,6 +19,13 @@ urlpatterns = [
     path('follow/<str:username>/', views.toggle_follow_view, name='toggle_follow'),
     path('<str:username>/followers/', views.followers_list_view, name='followers_list'),
     path('<str:username>/following/', views.following_list_view, name='following_list'),
+    
+    
+    path('follow-requests/', views.follow_requests_view, name='follow_requests'),
+    path('follow-request/<int:request_id>/reject/', views.reject_follow_request_view),
+    path('follow-request/<int:request_id>/accept/', views.accept_follow_request_view),
+    path('follow-request/cancel/<str:username>/', views.cancel_follow_request_view, name='cancel_follow_request'),
+    path('follow/request/<str:username>/', views.send_follow_request_view, name='follow_user'),
 
    ]
 

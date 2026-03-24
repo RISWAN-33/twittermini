@@ -18,7 +18,8 @@ from .models import CustomUser, follow
 from .utils_privacy import can_view_user_posts
 from post.models import Post, Like,Comment
 from post.views import feed_view
-
+from .models import *
+from post.models import *
 
 
 from datetime import datetime, timedelta
@@ -464,7 +465,7 @@ def profile_detail_view(request, username=None):
         Post.objects.filter(user=request.user, parent__isnull=False).values_list("parent_id", flat=True)
     )
 
-    has_pending_request = FollowRequest.objects.filter(
+    has_pending_request = follow_request.objects.filter(
     sender=request.user,
     receiver=profile_user
 ).exists()
@@ -599,3 +600,126 @@ def following_list_view(request, username):
     user      = get_object_or_404(CustomUser, username=username)
     following = user.following.select_related("following")
     return render(request, "profile/following_list.html", {"profile_user": user, "following": following})
+
+
+# ============================================================
+# send follow request view (for private accounts)
+# ============================================================
+@login_required
+@require_POST
+def send_follow_request_view(request, username):
+
+    target_user = get_object_or_404(CustomUser, username=username)
+
+    if request.user == target_user:
+        return JsonResponse({"success": False, "message": "Cannot follow yourself."}, status=400)
+
+    # Already following
+    if follow.objects.filter(follower=request.user, following=target_user).exists():
+        return JsonResponse({"success": False, "message": "Already following."})
+
+    # PUBLIC ACCOUNT → follow instantly
+    if not target_user.is_private:
+        follow.objects.create(follower=request.user, following=target_user)
+
+        return JsonResponse({
+            "success": True,
+            "status": "following",
+            "followers_count": target_user.followers.count()
+        })
+
+    # PRIVATE ACCOUNT → create request
+    obj, created = followRequest.objects.get_or_create(
+        sender=request.user,
+        receiver=target_user
+    )
+
+    return JsonResponse({
+        "success": True,
+        "status": "requested"
+    })
+
+
+@login_required
+@require_POST
+def accept_follow_request_view(request, request_id):
+
+    follow_request = get_object_or_404(
+        followRequest,
+        id=request_id,
+        receiver=request.user
+    )
+
+    try:
+        with transaction.atomic():
+
+            follow.objects.create(
+                follower=follow_request.sender,
+                following=follow_request.receiver
+            )
+
+            follow_request.delete()
+
+    except Exception:
+        return JsonResponse({"success": False})
+
+    return JsonResponse({"success": True})
+
+
+
+
+@login_required
+@require_POST
+def reject_follow_request_view(request, request_id):
+
+    follow_request = get_object_or_404(
+        followRequest,
+        id=request_id,
+        receiver=request.user
+    )
+
+    follow_request.delete()
+
+    return JsonResponse({"success": True})
+
+
+@login_required
+@require_POST
+def cancel_follow_request_view(request, username):
+
+    target_user = get_object_or_404(CustomUser, username=username)
+
+    followRequest.objects.filter(
+        sender=request.user,
+        receiver=target_user
+    ).delete()
+
+    return JsonResponse({"success": True})
+
+
+
+@login_required
+def follow_requests_view(request):
+
+    requests = (
+        followRequest.objects
+        .filter(receiver=request.user)
+        .select_related("sender")
+        .order_by("-created_at")
+    )
+
+    return render(request, "profile/follow_requests.html", {
+        "requests": requests
+    })
+
+
+def can_view_user_posts(viewer, owner):
+
+    if viewer == owner:
+        return True
+
+    if not owner.is_private:
+        return True
+
+    return owner.followers.filter(follower=viewer).exists()
+
